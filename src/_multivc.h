@@ -83,9 +83,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define SILENCE_8BIT      0x80808080
 //#define SILENCE_16BIT_PAS 0
 
+#ifdef _3DS
+#define MixBufferSize     512
+#define NumberOfBuffers   4
+#else
 #define MixBufferSize     256
-
 #define NumberOfBuffers   16
+#endif
+
 #define TotalBufferSize   ( MixBufferSize * NumberOfBuffers )
 
 #define PI                3.1415926536

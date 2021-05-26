@@ -129,6 +129,8 @@ int FX_Init
 		SoundCard = ASS_CoreAudio;
 #elif defined _WIN32
 		SoundCard = ASS_DirectSound;
+#elif defined _3DS
+		SoundCard = ASS_CTR;
 #elif defined HAVE_SDL
 		SoundCard = ASS_SDL;
 #else

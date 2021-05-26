@@ -41,6 +41,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "multivoc.h"
 #include "_multivc.h"
 
+#ifdef _3DS
+#include <3ds.h>
+#endif
+
 #ifdef __POWERPC__
 #define LITTLE16 SWAP16
 #define LITTLE32 SWAP32
@@ -2779,7 +2783,6 @@ int MV_GetReverseStereo
    Perform the initialization of variables and memory used by
    Multivoc.
 ---------------------------------------------------------------------*/
-
 int MV_Init
    (
    int soundcard,
@@ -2804,7 +2807,11 @@ int MV_Init
    MV_SetErrorCode( MV_Ok );
 
    MV_TotalMemory = Voices * sizeof( VoiceNode ) + sizeof( HARSH_CLIP_TABLE_8 ) + TotalBufferSize;
-	ptr = (char *) malloc( MV_TotalMemory );
+#ifdef _3DS
+   ptr = (char *) linearAlloc( MV_TotalMemory );
+#else
+   ptr = (char *) malloc( MV_TotalMemory );
+#endif
    if ( !ptr )
       {
       MV_SetErrorCode( MV_NoMem );
@@ -2931,7 +2938,11 @@ int MV_Shutdown
 	SoundDriver_PCM_Shutdown();
 
    // Free any voices we allocated
+#ifdef _3DS
+   linearFree( MV_Voices );
+#else
    free( MV_Voices );
+#endif
    MV_Voices      = NULL;
    MV_TotalMemory = 0;
 

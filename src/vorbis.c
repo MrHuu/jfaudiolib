@@ -26,6 +26,8 @@
 
 #ifdef __APPLE__
 # include <vorbis/vorbisfile.h>
+#elif _3DS
+# include <tremor/ivorbisfile.h>
 #else
 # include "vorbis/vorbisfile.h"
 #endif
@@ -147,7 +149,11 @@ static playbackstatus MV_GetNextVorbisBlock
    
    bytesread = 0;
    do {
+#ifdef _3DS
+      bytes = ov_read(&vd->vf, vd->block + bytesread, sizeof(vd->block) - bytesread, &bitstream);
+#else
       bytes = ov_read(&vd->vf, vd->block + bytesread, sizeof(vd->block) - bytesread, 0, 2, 1, &bitstream);
+#endif
       //fprintf(stderr, "ov_read = %d\n", bytes);
       if (bytes == OV_HOLE) continue;
       if (bytes == 0) {

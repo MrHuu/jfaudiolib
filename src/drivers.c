@@ -48,6 +48,11 @@
 # include "driver_alsa.h"
 #endif
 
+#if defined _3DS
+# include <3ds.h>
+# include "driver_ctr.h"
+#endif
+
 int ASS_PCMSoundDriver = -1;
 int ASS_CDSoundDriver = -1;
 int ASS_MIDISoundDriver = -1;
@@ -113,7 +118,26 @@ static struct {
         NoSoundDrv_MIDI_Lock,
         NoSoundDrv_MIDI_Unlock,
    },
-    
+
+    // CTR/3DS
+    {
+        "CTR",
+    #ifdef _3DS
+        CTRDrv_GetError,
+        CTRDrv_ErrorString,
+        CTRDrv_PCM_Init,
+        CTRDrv_PCM_Shutdown,
+        CTRDrv_PCM_BeginPlayback,
+        CTRDrv_PCM_StopPlayback,
+        CTRDrv_PCM_Lock,
+        CTRDrv_PCM_Unlock,
+        UNSUPPORTED_CD,
+        UNSUPPORTED_MIDI,
+    #else
+        UNSUPPORTED_COMPLETELY,
+    #endif
+    },
+
     // Simple DirectMedia Layer
     {
         "SDL",
