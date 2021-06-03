@@ -1774,8 +1774,10 @@ void MV_SetReverb
    )
 
    {
+#ifndef _3DS
    MV_ReverbLevel = MIX_VOLUME( reverb );
    MV_ReverbTable = &MV_VolumeTable[ MV_ReverbLevel ];
+#endif
    }
 
 
