@@ -75,6 +75,7 @@ int FX_EndLooping( int handle );
 int FX_SetPan( int handle, int vol, int left, int right );
 int FX_SetPitch( int handle, int pitchoffset );
 int FX_SetFrequency( int handle, int frequency );
+int FX_GetFrequency( int handle, int *frequency );
 
 int FX_PlayVOC( char *ptr, unsigned int ptrlength, int pitchoffset, int vol, int left, int right,
        int priority, unsigned int callbackval );
@@ -90,6 +91,8 @@ int FX_PlayVOC3D( char *ptr, unsigned int ptrlength, int pitchoffset, int angle,
        int priority, unsigned int callbackval );
 int FX_PlayWAV3D( char *ptr, unsigned int ptrlength, int pitchoffset, int angle, int distance,
        int priority, unsigned int callbackval );
+int FX_PlayRaw3D( char *ptr, unsigned int ptrlength, unsigned rate,
+       int pitchoffset, int angle, int distance, int priority, unsigned int callbackval );
 
 int FX_PlayAuto( char *ptr, unsigned int ptrlength, int pitchoffset, int vol, int left, int right,
                 int priority, unsigned int callbackval );

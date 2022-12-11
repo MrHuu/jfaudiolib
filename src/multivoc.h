@@ -63,6 +63,7 @@ int   MV_VoicesPlaying( void );
 int   MV_VoiceAvailable( int priority );
 int   MV_SetPitch( int handle, int pitchoffset );
 int   MV_SetFrequency( int handle, int frequency );
+int   MV_GetFrequency( int handle, int *frequency );
 int   MV_EndLooping( int handle );
 int   MV_SetPan( int handle, int vol, int left, int right );
 int   MV_Pan3D( int handle, int angle, int distance );
@@ -89,6 +90,8 @@ int   MV_PlayLoopedRaw( char *ptr, unsigned int length,
 int   MV_PlayWAV( char *ptr, unsigned int length, int pitchoffset, int vol, int left,
          int right, int priority, unsigned int callbackval );
 int   MV_PlayWAV3D( char *ptr, unsigned int length, int pitchoffset, int angle, int distance,
+         int priority, unsigned int callbackval );
+int   MV_PlayRaw3D( char *ptr, unsigned int length, unsigned rate, int pitchoffset, int angle, int distance,
          int priority, unsigned int callbackval );
 int   MV_PlayLoopedWAV( char *ptr, unsigned int length, int loopstart, int loopend,
          int pitchoffset, int vol, int left, int right, int priority,

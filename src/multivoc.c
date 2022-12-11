@@ -39,36 +39,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "drivers.h"
 #include "pitch.h"
 #include "multivoc.h"
+#include "assmisc.h"
 #include "_multivc.h"
 
 #ifdef _3DS
 #include <3ds.h>
 #endif
-
-#ifdef __POWERPC__
-#define LITTLE16 SWAP16
-#define LITTLE32 SWAP32
-#else
-#define LITTLE16
-#define LITTLE32
-#endif
-
-#ifdef _MSC_VER
-#define inline _inline
-#endif
-
-static inline unsigned short SWAP16(unsigned short s)
-{
-	return (s >> 8) | (s << 8);
-}
-
-static inline unsigned int SWAP32(unsigned int s)
-{
-	return (s >> 24) | (s << 24) | ((s&0xff00) << 8) | ((s & 0xff0000) >> 8);
-}
-
-#define min(x,y) ((x) < (y) ? (x) : (y))
-#define max(x,y) ((x) > (y) ? (x) : (y))
 
 #define RoundFixed( fixedval, bits )            \
         (                                       \
@@ -153,6 +129,8 @@ static int DisableInterrupts(void)
 
 static void RestoreInterrupts(int a)
 {
+	(void)a;
+
 	if (--lockdepth > 0) {
 		return;
 	}
@@ -1397,6 +1375,45 @@ int MV_SetFrequency
 
 
 /*---------------------------------------------------------------------
+   Function: MV_GetFrequency
+
+   Gets the frequency for the voice associated with the specified handle.
+---------------------------------------------------------------------*/
+
+int MV_GetFrequency
+   (
+   int handle,
+   int *frequency
+   )
+
+   {
+   VoiceNode *voice;
+
+   if ( !MV_Installed )
+      {
+      MV_SetErrorCode( MV_NotInstalled );
+      return( MV_Error );
+      }
+
+   voice = MV_GetVoice( handle );
+   if ( voice == NULL )
+      {
+      MV_SetErrorCode( MV_VoiceNotFound );
+      return( MV_Error );
+      }
+
+    if ( voice->SamplingRate == 0 )
+      {
+      voice->GetSound( voice );
+      }
+
+   *frequency = voice->SamplingRate;
+
+   return( MV_Ok );
+   }
+
+
+/*---------------------------------------------------------------------
    Function: MV_GetVolumeTable
 
    Returns a pointer to the volume table associated with the specified
@@ -2019,6 +2036,8 @@ int MV_StartRecording
    )
 
    {
+	(void)MixRate; (void)function;
+
 	MV_SetErrorCode( MV_UnsupportedCard );
 	return( MV_Error );
    }
@@ -2280,6 +2299,60 @@ int MV_PlayWAV3D
 
 
 /*---------------------------------------------------------------------
+   Function: MV_PlayRaw3D
+
+   Begin playback of sound data at specified angle and distance
+   from listener.
+---------------------------------------------------------------------*/
+
+int MV_PlayRaw3D
+   (
+   char *ptr,
+   unsigned int length,
+   unsigned rate,
+   int  pitchoffset,
+   int  angle,
+   int  distance,
+   int  priority,
+   unsigned int callbackval
+   )
+
+   {
+   int left;
+   int right;
+   int mid;
+   int volume;
+   int status;
+
+   if ( !MV_Installed )
+      {
+      MV_SetErrorCode( MV_NotInstalled );
+      return( MV_Error );
+      }
+
+   if ( distance < 0 )
+      {
+      distance  = -distance;
+      angle    += MV_NumPanPositions / 2;
+      }
+
+   volume = MIX_VOLUME( distance );
+
+   // Ensure angle is within 0 - 31
+   angle &= MV_MaxPanPosition;
+
+   left  = MV_PanTable[ angle ][ volume ].left;
+   right = MV_PanTable[ angle ][ volume ].right;
+   mid   = max( 0, 255 - distance );
+
+   status = MV_PlayRaw( ptr, length, rate, pitchoffset, mid, left, right,
+      priority, callbackval );
+
+   return( status );
+   }
+
+
+/*---------------------------------------------------------------------
    Function: MV_PlayLoopedWAV
 
    Begin playback of sound data with the given sound levels and
@@ -2306,6 +2379,8 @@ int MV_PlayLoopedWAV
    data_header   data;
    VoiceNode     *voice;
    int length;
+
+   (void)ptrlength; (void)loopend;
 
    if ( !MV_Installed )
       {
@@ -2518,6 +2593,8 @@ int MV_PlayLoopedVOC
    {
    VoiceNode   *voice;
    int          status;
+
+   (void)ptrlength;
 
    if ( !MV_Installed )
       {

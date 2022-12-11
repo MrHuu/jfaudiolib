@@ -28,16 +28,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
    (c) Copyright 1994 James R. Dose.  All Rights Reserved.
 **********************************************************************/
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "sndcards.h"
 #include "drivers.h"
 #include "multivoc.h"
 #include "fx_man.h"
-
-#define TRUE  ( 1 == 1 )
-#define FALSE ( !TRUE )
+#include "asssys.h"
+#include "assmisc.h"
 
 int FX_ErrorCode = FX_Ok;
 int FX_Installed = FALSE;
@@ -116,53 +114,64 @@ int FX_Init
    )
 
    {
-   int status;
    int devicestatus;
+   int mincard, maxcard, card;
 
    if ( FX_Installed )
       {
       FX_Shutdown();
       }
-	
-	if (SoundCard == ASS_AutoDetect) {
-#if defined __APPLE__ && !defined NO_COREAUDIO
-		SoundCard = ASS_CoreAudio;
-#elif defined _WIN32
-		SoundCard = ASS_DirectSound;
-#elif defined _3DS
-		SoundCard = ASS_CTR;
-#elif defined HAVE_SDL
-		SoundCard = ASS_SDL;
-#else
-		SoundCard = ASS_NoSound;
-#endif
-	}
-	
-	if (SoundCard < 0 || SoundCard >= ASS_NumSoundCards) {
-		FX_SetErrorCode( FX_InvalidCard );
-		status = FX_Error;
-		return status;
-	}
-	
-	if (SoundDriver_IsPCMSupported(SoundCard) == 0) {
-		// unsupported cards fall back to no sound
-		SoundCard = ASS_NoSound;
-	}
-   
-   status = FX_Ok;
-	devicestatus = MV_Init( SoundCard, mixrate, numvoices, numchannels, samplebits, initdata );
-	if ( devicestatus != MV_Ok )
-		{
-		FX_SetErrorCode( FX_MultiVocError );
-		status = FX_Error;
-		}
 
-   if ( status == FX_Ok )
+   if (SoundCard == ASS_AutoDetect)
       {
-      FX_Installed = TRUE;
+      mincard = ASS_NoSound + 1;
+      maxcard = ASS_NumSoundCards - 1;
+      }
+   else if (SoundCard < 0 || SoundCard >= ASS_NumSoundCards)
+      {
+      FX_SetErrorCode( FX_InvalidCard );
+      return FX_Error;
+      }
+   else
+      {
+      mincard = SoundCard;
+      maxcard = SoundCard;
       }
 
-   return( status );
+   for (card = mincard; card <= maxcard; card++)
+      {
+      if (!SoundDriver_IsPCMSupported(card))
+         {
+         continue;
+         }
+      else if (SoundCard == ASS_AutoDetect)
+         {
+         ASS_Message("FX_Init: trying %s\n", SoundDriver_GetName(card));
+         }
+
+      devicestatus = MV_Init( card, mixrate, numvoices, numchannels, samplebits, initdata );
+      if (devicestatus == MV_Ok)
+         {
+         FX_Installed = TRUE;
+         return FX_Ok;
+         }
+      }
+
+   if (SoundCard == ASS_AutoDetect)
+      {
+      // A failure to autodetect falls back to no sound.
+      card = ASS_NoSound;
+
+      devicestatus = MV_Init( card, mixrate, numvoices, numchannels, samplebits, initdata );
+      if ( devicestatus == MV_Ok )
+         {
+         FX_Installed = TRUE;
+         return FX_Ok;
+         }
+      }
+
+   FX_SetErrorCode( FX_MultiVocError );
+   return FX_Error;
    }
 
 
@@ -505,6 +514,32 @@ int FX_SetFrequency
 
 
 /*---------------------------------------------------------------------
+   Function: FX_GetFrequency
+
+   Gets the frequency of the voice associated with the specified handle.
+---------------------------------------------------------------------*/
+
+int FX_GetFrequency
+   (
+   int handle,
+   int *frequency
+   )
+
+   {
+   int status;
+
+   status = MV_GetFrequency( handle, frequency );
+   if ( status == MV_Error )
+      {
+      FX_SetErrorCode( FX_MultiVocError );
+      status = FX_Warning;
+      }
+
+   return( status );
+   }
+
+
+/*---------------------------------------------------------------------
    Function: FX_PlayVOC
 
    Begin playback of sound data with the given volume and priority.
@@ -695,6 +730,40 @@ int FX_PlayWAV3D
    int handle;
 
    handle = MV_PlayWAV3D( ptr, ptrlength, pitchoffset, angle, distance,
+      priority, callbackval );
+   if ( handle < MV_Ok )
+      {
+      FX_SetErrorCode( FX_MultiVocError );
+      handle = FX_Warning;
+      }
+
+   return( handle );
+   }
+
+
+/*---------------------------------------------------------------------
+   Function: FX_PlayRaw3D
+
+   Begin playback of sound data at specified angle and distance
+   from listener.
+---------------------------------------------------------------------*/
+
+int FX_PlayRaw3D
+   (
+   char *ptr,
+   unsigned int ptrlength,
+   unsigned rate,
+   int pitchoffset,
+   int angle,
+   int distance,
+   int priority,
+   unsigned int callbackval
+   )
+
+   {
+   int handle;
+
+   handle = MV_PlayRaw3D( ptr, ptrlength, rate, pitchoffset, angle, distance,
       priority, callbackval );
    if ( handle < MV_Ok )
       {
@@ -959,6 +1028,8 @@ int FX_StartRecording
 
    {
    int status;
+
+	(void)MixRate; (void)function;
 
 	FX_SetErrorCode( FX_InvalidCard );
 	status = FX_Warning;

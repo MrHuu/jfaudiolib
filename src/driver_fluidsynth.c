@@ -24,9 +24,9 @@
 
 #include "midifuncs.h"
 #include "driver_fluidsynth.h"
+#include "asssys.h"
 #include <fluidsynth.h>
 #include <string.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/select.h>
@@ -59,6 +59,8 @@ enum {
 static int ErrorCode = FSynthErr_Ok;
 static char soundFontName[PATH_MAX+1] = "";
 static const char *soundFontPaths[] = {
+    "./*.sf2",
+    "/usr/share/soundfonts/*.sf2",
     "/usr/share/sounds/sf2/*.sf2",
     NULL,
 };
@@ -152,13 +154,14 @@ static inline void sequence_event(void)
     //fluid_sequencer_send_now(fluidsequencer, fluidevent);
     result = fluid_sequencer_send_at(fluidsequencer, fluidevent, threadTimer, 1);
     if (result < 0) {
-        fprintf(stderr, "FluidSynthDrv: fluidsynth could not queue event\n");
+        ASS_Message("FluidSynthDrv: fluidsynth could not queue event\n");
     }
 }
 
 static int find_soundfont(void)
 {
-    int pathn, globi, found = 0;
+    int pathn, found = 0;
+    unsigned globi;
     glob_t globt;
 
     for (pathn = 0; !found && soundFontPaths[pathn]; pathn++) {
@@ -183,7 +186,7 @@ static int find_soundfont(void)
         }
     }
 
-    return !found;
+    return found;
 }
 
 static void apply_params(const char *params, fluid_settings_t *settings)
@@ -204,26 +207,30 @@ static void apply_params(const char *params, fluid_settings_t *settings)
         if (!paramname) {
             break;
         }
+        if (strcmp(paramname, "soundfont") == 0 || strcmp(paramname, "soundbank") == 0) {
+            strcpy(soundFontName, paramvalue);
+            continue;
+        }
 
         switch (fluid_settings_get_type(settings, paramname)) {
             case FLUID_NUM_TYPE:
-                fprintf(stderr, "FluidSynthDrv: setting '%s' to %f\n", paramname, atof(paramvalue));
+                ASS_Message("FluidSynthDrv: setting '%s' to %f\n", paramname, atof(paramvalue));
                 setok = fluid_settings_setnum(settings, paramname, atof(paramvalue));
                 break;
             case FLUID_INT_TYPE:
-                fprintf(stderr, "FluidSynthDrv: setting '%s' to %d\n", paramname, atoi(paramvalue));
+                ASS_Message("FluidSynthDrv: setting '%s' to %d\n", paramname, atoi(paramvalue));
                 setok = fluid_settings_setint(settings, paramname, atoi(paramvalue));
                 break;
             case FLUID_STR_TYPE:
-                fprintf(stderr, "FluidSynthDrv: setting '%s' to '%s'\n", paramname, paramvalue);
+                ASS_Message("FluidSynthDrv: setting '%s' to '%s'\n", paramname, paramvalue);
                 setok = fluid_settings_setstr(settings, paramname, paramvalue);
                 break;
             default:
                 setok = 0;
                 break;
         }
-        if (!setok) {
-            fprintf(stderr, "FluidSynthDrv: error setting '%s' to '%s'\n", paramname, paramvalue);
+        if (setok < 0) {
+            ASS_Message("FluidSynthDrv: error setting '%s' to '%s'\n", paramname, paramvalue);
         }
     }
 
@@ -232,6 +239,8 @@ static void apply_params(const char *params, fluid_settings_t *settings)
 
 static void Func_NoteOff( int channel, int key, int velocity )
 {
+    (void)velocity;
+
     fluid_event_noteoff(fluidevent, channel, key);
     sequence_event();
 }
@@ -244,7 +253,9 @@ static void Func_NoteOn( int channel, int key, int velocity )
 
 static void Func_PolyAftertouch( int channel, int key, int pressure )
 {
-    fprintf(stderr, "FluidSynthDrv: key %d channel %d aftertouch\n", key, channel);
+    (void)pressure;
+
+    ASS_Message("FluidSynthDrv: key %d channel %d aftertouch\n", key, channel);
 }
 
 static void Func_ControlChange( int channel, int number, int value )
@@ -261,7 +272,9 @@ static void Func_ProgramChange( int channel, int program )
 
 static void Func_ChannelAftertouch( int channel, int pressure )
 {
-    fprintf(stderr, "FluidSynthDrv: channel %d aftertouch\n", channel);
+    (void)pressure;
+
+    ASS_Message("FluidSynthDrv: channel %d aftertouch\n", channel);
 }
 
 static void Func_PitchBend( int channel, int lsb, int msb )
@@ -275,6 +288,8 @@ static void * threadProc(void * parm)
     struct timeval tv;
     int sleepAmount = 1000000 / THREAD_QUEUE_INTERVAL;
     unsigned int sequenceTime;
+
+    (void)parm;
 
     // prime the pump
     threadTimer = fluid_sequencer_get_tick(fluidsequencer);
@@ -321,11 +336,7 @@ int FluidSynthDrv_MIDI_Init(midifuncs *funcs, const char *params)
     FluidSynthDrv_MIDI_Shutdown();
     memset(funcs, 0, sizeof(midifuncs));
 
-    if (find_soundfont()) {
-        ErrorCode = FSynthErr_BadSoundFont;
-        return FSynthErr_Error;
-    }
-    fprintf(stderr, "FluidSynthDrv: using soundfont %s\n", soundFontName);
+    ASS_Message("FluidSynthDrv: using version %s, built with %s\n", fluid_version_str(), FLUIDSYNTH_VERSION);
 
     fluidsettings = new_fluid_settings();
     if (!fluidsettings) {
@@ -334,32 +345,34 @@ int FluidSynthDrv_MIDI_Init(midifuncs *funcs, const char *params)
     }
 
     apply_params(params, fluidsettings);
-        
+
+    if (soundFontName[0]) {
+        ASS_Message("FluidSynthDrv: using soundfont %s\n", soundFontName);
+    } else if (find_soundfont()) {
+        ASS_Message("FluidSynthDrv: using found soundfont %s\n", soundFontName);
+    } else {
+        fluid_settings_copystr(fluidsettings, "synth.default-soundfont", soundFontName,
+            sizeof(soundFontName));
+    }
+
     fluidsynth = new_fluid_synth(fluidsettings);
     if (!fluidsettings) {
         FluidSynthDrv_MIDI_Shutdown();
         ErrorCode = FSynthErr_NewFluidSynth;
         return FSynthErr_Error;
     }
-    
-    fluidaudiodriver = new_fluid_audio_driver(fluidsettings, fluidsynth);
-    if (!fluidsettings) {
+
+    result = fluid_synth_sfload(fluidsynth, soundFontName, 1);
+    if (result < 0) {
         FluidSynthDrv_MIDI_Shutdown();
-        ErrorCode = FSynthErr_NewFluidAudioDriver;
-        return FSynthErr_Error;
-    }
-    
-    fluidsequencer = new_fluid_sequencer();
-    if (!fluidsettings) {
-        FluidSynthDrv_MIDI_Shutdown();
-        ErrorCode = FSynthErr_NewFluidSequencer;
+        ErrorCode = FSynthErr_BadSoundFont;
         return FSynthErr_Error;
     }
 
-    fluidevent = new_fluid_event();
-    if (!fluidevent) {
+    fluidsequencer = new_fluid_sequencer2(0);
+    if (!fluidsettings) {
         FluidSynthDrv_MIDI_Shutdown();
-        ErrorCode = FSynthErr_NewFluidEvent;
+        ErrorCode = FSynthErr_NewFluidSequencer;
         return FSynthErr_Error;
     }
 
@@ -370,10 +383,17 @@ int FluidSynthDrv_MIDI_Init(midifuncs *funcs, const char *params)
         return FSynthErr_Error;
     }
 
-    result = fluid_synth_sfload(fluidsynth, soundFontName, 1);
-    if (result < 0) {
+    fluidaudiodriver = new_fluid_audio_driver(fluidsettings, fluidsynth);
+    if (!fluidsettings) {
         FluidSynthDrv_MIDI_Shutdown();
-        ErrorCode = FSynthErr_BadSoundFont;
+        ErrorCode = FSynthErr_NewFluidAudioDriver;
+        return FSynthErr_Error;
+    }
+
+    fluidevent = new_fluid_event();
+    if (!fluidevent) {
+        FluidSynthDrv_MIDI_Shutdown();
+        ErrorCode = FSynthErr_NewFluidEvent;
         return FSynthErr_Error;
     }
 
@@ -393,20 +413,23 @@ int FluidSynthDrv_MIDI_Init(midifuncs *funcs, const char *params)
 
 void FluidSynthDrv_MIDI_Shutdown(void)
 {
-    if (fluidevent) {
-        delete_fluid_event(fluidevent);
+    if (fluidaudiodriver) {
+        delete_fluid_audio_driver(fluidaudiodriver);
+    }
+    if (synthseqid >= 0) {
+        fluid_sequencer_unregister_client(fluidsequencer, synthseqid);
     }
     if (fluidsequencer) {
         delete_fluid_sequencer(fluidsequencer);
-    }
-    if (fluidaudiodriver) {
-        delete_fluid_audio_driver(fluidaudiodriver);
     }
     if (fluidsynth) {
         delete_fluid_synth(fluidsynth);
     }
     if (fluidsettings) {
         delete_fluid_settings(fluidsettings);
+    }
+    if (fluidevent) {
+        delete_fluid_event(fluidevent);
     }
     synthseqid = -1;
     fluidevent = 0;
@@ -424,7 +447,7 @@ int FluidSynthDrv_MIDI_StartPlayback(void (*service)(void))
     threadQuit = 0;
 
     if (pthread_create(&thread, NULL, threadProc, NULL)) {
-        fprintf(stderr, "FluidSynthDrv: pthread_create returned error\n");
+        ASS_Message("FluidSynthDrv: pthread_create returned error\n");
         return FSynthErr_PlayThread;
     }
 
@@ -444,7 +467,7 @@ void FluidSynthDrv_MIDI_HaltPlayback(void)
     threadQuit = 1;
 
     if (pthread_join(thread, &ret)) {
-        fprintf(stderr, "FluidSynthDrv: pthread_join returned error\n");
+        ASS_Message("FluidSynthDrv: pthread_join returned error\n");
     }
 
     threadRunning = 0;

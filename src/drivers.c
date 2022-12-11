@@ -25,6 +25,9 @@
 
 #include "drivers.h"
 
+//#define NO_COREAUDIO
+//#define NO_DIRECTSOUND
+
 #include "driver_nosound.h"
 
 #ifdef HAVE_SDL
@@ -138,31 +141,6 @@ static struct {
     #endif
     },
 
-    // Simple DirectMedia Layer
-    {
-        "SDL",
-    #ifdef HAVE_SDL
-        SDLDrv_GetError,
-        SDLDrv_ErrorString,
-        SDLDrv_PCM_Init,
-        SDLDrv_PCM_Shutdown,
-        SDLDrv_PCM_BeginPlayback,
-        SDLDrv_PCM_StopPlayback,
-        SDLDrv_PCM_Lock,
-        SDLDrv_PCM_Unlock,
-        SDLDrv_CD_Init,
-        SDLDrv_CD_Shutdown,
-        SDLDrv_CD_Play,
-        SDLDrv_CD_Stop,
-        SDLDrv_CD_Pause,
-        SDLDrv_CD_IsPlaying,
-        SDLDrv_CD_SetVolume,
-        UNSUPPORTED_MIDI,
-    #else
-        UNSUPPORTED_COMPLETELY,
-    #endif
-    },
-
     // OS X CoreAudio
     {
         "Core Audio",
@@ -191,7 +169,7 @@ static struct {
     // Windows DirectSound
     {
         "DirectSound",
-    #ifdef _WIN32
+    #if defined _WIN32 && !defined NO_DIRECTSOUND
         DirectSoundDrv_GetError,
         DirectSoundDrv_ErrorString,
         DirectSoundDrv_PCM_Init,
@@ -274,6 +252,31 @@ static struct {
         ALSADrv_MIDI_SetTempo,
         ALSADrv_MIDI_Lock,
         ALSADrv_MIDI_Unlock,
+    #else
+        UNSUPPORTED_COMPLETELY,
+    #endif
+    },
+
+    // Simple DirectMedia Layer
+    {
+        "SDL",
+    #ifdef HAVE_SDL
+        SDLDrv_GetError,
+        SDLDrv_ErrorString,
+        SDLDrv_PCM_Init,
+        SDLDrv_PCM_Shutdown,
+        SDLDrv_PCM_BeginPlayback,
+        SDLDrv_PCM_StopPlayback,
+        SDLDrv_PCM_Lock,
+        SDLDrv_PCM_Unlock,
+        SDLDrv_CD_Init,
+        SDLDrv_CD_Shutdown,
+        SDLDrv_CD_Play,
+        SDLDrv_CD_Stop,
+        SDLDrv_CD_Pause,
+        SDLDrv_CD_IsPlaying,
+        SDLDrv_CD_SetVolume,
+        UNSUPPORTED_MIDI,
     #else
         UNSUPPORTED_COMPLETELY,
     #endif

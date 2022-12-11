@@ -22,6 +22,7 @@
  /* Fixes needed */
 
 #include <3ds.h>
+#include <string.h>
 #include "inttypes.h"
 
 #ifndef UNREFERENCED_PARAMETER

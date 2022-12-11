@@ -23,11 +23,26 @@
 #ifdef _WIN32
 # define WIN32_LEAN_AND_MEAN
 # include <windows.h>
+# include <stdarg.h>
+# include <stdio.h>
 #else
 # include <sys/types.h>
 # include <sys/time.h>
 # include <unistd.h>
+# include <stdarg.h>
+# include <stdio.h>
 #endif
+
+static void _ASS_MessageOutputString(const char *str)
+{
+#ifdef _WIN32
+    OutputDebugString(str);
+#else
+    fputs(str, stderr);
+#endif
+}
+
+void (*ASS_MessageOutputString)(const char *) = _ASS_MessageOutputString;
 
 void ASS_Sleep(int msec)
 {
@@ -40,4 +55,15 @@ void ASS_Sleep(int msec)
 	tv.tv_usec = (msec % 1000) * 1000;
 	select(0, NULL, NULL, NULL, &tv);
 #endif
+}
+
+void ASS_Message(const char *fmt, ...)
+{
+    char text[256];
+    va_list va;
+
+    va_start(va, fmt);
+    vsnprintf(text, sizeof(text), fmt, va);
+    va_end(va);
+    ASS_MessageOutputString(text);
 }

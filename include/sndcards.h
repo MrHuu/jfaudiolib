@@ -31,22 +31,22 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef __SNDCARDS_H
 #define __SNDCARDS_H
 
-#define ASS_VERSION_STRING "JonoF 20090718"
+#define ASS_VERSION_STRING "JonoF 20210502"
 
 typedef enum
    {
    ASS_NoSound,
-#ifdef _3DS
+#ifdef __3DS__
    ASS_CTR,
 #endif
-   ASS_SDL,
    ASS_CoreAudio,
    ASS_DirectSound,
    ASS_WinMM,
    ASS_FluidSynth,
    ASS_ALSA,
+   ASS_SDL,
    ASS_NumSoundCards,
-	ASS_AutoDetect = -2
+   ASS_AutoDetect = -2
    } soundcardnames;
 
 #endif
